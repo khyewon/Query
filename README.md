@@ -22,7 +22,7 @@ sql/
 프로젝트 마일스톤·공정별 생산 진행·납기(OTD)/품질(FPY)/청구 KPI·미결 이슈를 다루는 5페이지 보고서입니다.
 - SharePoint Excel 원천을 Power Query로 정리(Unpivot, 다단 헤더 승격, 상태 판정 컬럼)
 - 단일 주차 테이블을 `USERELATIONSHIP`·`TREATAS`로 공정별 완료 주차에 연결
-- 페이지 레이아웃 도식, 측정값·계산 테이블 전체(`measures.dax`), Power Query 주요 단계(`power_query.m`)
+- 가상 데이터로 재현한 페이지 화면, 측정값·계산 테이블 전체(`measures.dax`), Power Query 주요 단계(`power_query.m`)
 
 ## 쿼리 설명
 
