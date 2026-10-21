@@ -11,7 +11,8 @@
 sql/
 ├── zone_plan_item_map.sql     # 금주 생산계획 ↔ 자재 매핑 ↔ 공정 현황
 ├── board_item_map_check.sql   # 현황판 표시 매핑 검증
-└── area_job_list.sql          # 공정별 작업(Job) 계획·실적 목록
+├── area_job_list.sql          # 공정별 작업(Job) 계획·실적 목록
+└── zone_op_work_result.sql    # 금주 계획 단위의 자재 매핑·WO·실작업결과
 ```
 
 ## 쿼리 설명
@@ -33,3 +34,10 @@ sql/
 - `job` → `item_map` / `work_plan` / `equipment` / `proc` / `job_snap` 조인
 - 계획·실적 시작/종료 시각의 시간대 변환
 - `FIELD()`로 공정 순서 지정 정렬
+
+### `zone_op_work_result.sql`
+금주 미완료 생산계획 단위의 자재 매핑, 작업지시(WO), 실작업결과를 결합해 특정 구역(Zone 3)·특정 공정(`OP-L`) 기준으로 조회합니다.
+- CTE 3개로 구성: 공정 진행 이력(`mapped_item_wip`), 금주 계획 ↔ 자재 매핑(`plan_with_item`), 작업 실행 ↔ 작업자·설비(`wo_with_operator`)
+- 자재 종류에 따라 자재 ID 앞 7자리로 단위 ID 산출, 라인 번호로 구역(`ZONE1`–`ZONE3`) 구분
+- 프로젝트·자재·공정·진행 상태 기준 조인으로 WO와 실작업 시각(`job_on`/`job_off`) 연결
+- UTC → 현지 시각 변환
