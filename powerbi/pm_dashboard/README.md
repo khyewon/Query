@@ -2,6 +2,7 @@
 
 제조 프로젝트 관리(PM) 부서용 Power BI 대시보드입니다. 프로젝트 마일스톤, 공정별 생산 진행, 납기(OTD)·품질(FPY)·청구 KPI, 미결 이슈를 한 보고서에서 조회합니다.
 테이블명·컬럼명·공정 코드·프로젝트명은 익명화되어 있으며, 포트폴리오 공개본의 수치는 무작위 계수로 조정되어 실제 값과 다릅니다.
+페이지 이미지는 원본 보고서와 같은 레이아웃·시각화 구성에 **가상 데이터**를 넣어 재현한 화면입니다.
 
 - 도구: Power BI Desktop (Power Query M, DAX)
 - 데이터 소스: SharePoint 문서 라이브러리의 Excel 파일 5종 (`Excel.Workbook(Web.Contents(...))`)
@@ -23,7 +24,7 @@
 ## 페이지 구성
 
 ### 1. Main
-![Main](images/page1_main.svg)
+![Main](images/page1_main.png)
 
 | 시각화 | 유형 | 내용 |
 |---|---|---|
@@ -36,7 +37,7 @@
 | 슬라이서 | | 월 / 주차 / 프로젝트 |
 
 ### 2. Project Tracker
-![Project Tracker](images/page2_project_tracker.svg)
+![Project Tracker](images/page2_project_tracker.png)
 
 | 시각화 | 유형 | 내용 |
 |---|---|---|
@@ -45,7 +46,7 @@
 | Project Milestone | Gantt | 프로젝트별 생산 시작~종료 기간, 완료율 |
 
 ### 3. Issue Tracker
-![Issue Tracker](images/page3_issue_tracker.svg)
+![Issue Tracker](images/page3_issue_tracker.png)
 
 | 시각화 | 유형 | 내용 |
 |---|---|---|
@@ -55,7 +56,7 @@
 | New Open Task | 행렬 | 최근 7일 이내 등록된 미결 이슈 |
 
 ### 4. Production Tracker 1
-![Production Tracker 1](images/page4_production_tracker_1.svg)
+![Production Tracker 1](images/page4_production_tracker_1.png)
 
 | 시각화 | 유형 | 내용 |
 |---|---|---|
@@ -63,7 +64,7 @@
 | Weekly Production Completion | 묶은 막대 | 주차별 `S1`/`S2`/`S3` 완료 유닛 수 |
 
 ### 5. Production Tracker 2
-![Production Tracker 2](images/page5_production_tracker_2.svg)
+![Production Tracker 2](images/page5_production_tracker_2.png)
 
 | 시각화 | 유형 | 내용 |
 |---|---|---|
@@ -172,3 +173,4 @@ Month = IF((ENDOFMONTH(DateTable[WeekStart].[Date]) - DateTable[WeekStart].[Date
 - 고객사명: Power Query `Table.ReplaceValue`로 `Customer1`~`Customer4` 치환
 - 수치: 측정값에 무작위 조정 계수 적용 (본 문서의 DAX에서는 계수 제외)
 - 회사명·원천 파일 경로·프로젝트명·공정 코드: 문서 내 일반 명칭으로 대체
+- 페이지 이미지: 실제 데이터 대신 가상 데이터로 재현
