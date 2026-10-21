@@ -1,0 +1,140 @@
+-- PM Dashboard: DAX 정의 (익명화, 공개본 조정 계수 제외)
+
+-- ===== 측정값 =====
+
+thisweek = WEEKNUM(TODAY(), 2)
+
+-- 공정별 주간 완료 수
+S1 Done = CALCULATE(COUNTA(S1[S1_Done]), USERELATIONSHIP(S1[S1 Week], DateTable[Weeknum]), USERELATIONSHIP(__UnitRelease[Unit Type], S1[Unit Type]))
+S2 Done = CALCULATE(COUNTA(S2[S2_Done]), USERELATIONSHIP(S2[S2 Week], DateTable[Weeknum]), USERELATIONSHIP(__UnitRelease[Unit Type], S2[Unit Type]))
+S3 Done = CALCULATE(COUNTA(S3[S3_Done]), USERELATIONSHIP(S3[S3 Week], DateTable[Weeknum]), USERELATIONSHIP(__UnitRelease[Unit Type], S3[Unit Type]))
+Final Done = CALCULATE(COUNTA(FinalDone[Final_Done]), USERELATIONSHIP(FinalDone[Done Week], DateTable[Weeknum]), USERELATIONSHIP(__UnitRelease[Unit Type], FinalDone[Unit Type]))
+Invoice = CALCULATE(COUNTA(INV[Inv]), USERELATIONSHIP(INV[Inv Week], DateTable[Weeknum]), USERELATIONSHIP(__UnitRelease[Unit Type], INV[Unit Type]))
+Shipped = CALCULATE(COUNTA(Ship[Shipping]), USERELATIONSHIP(Ship[Ship Week], DateTable[Weeknum]), USERELATIONSHIP(__UnitRelease[Unit Type], Ship[Unit Type]))
+
+-- 이번 주까지 S3 완료 - 고객 계획
+Difference S3 to Plan = CALCULATE([S3 Done] - SUM(CustPlan[OTD]), CustPlan[week] <= WEEKNUM(TODAY(), 2))
+
+-- 납기 KPI
+OTD Target = 0.985
+OTD Rate =
+DIVIDE(
+    CALCULATE(
+        COUNTA(S3[S3_Done]),
+        USERELATIONSHIP(S3[S3 Week], DateTable[Weeknum]),
+        USERELATIONSHIP(CustPlan[Unit Type], S3[Unit Type])
+    ),
+    CALCULATE(
+        SUM(CustPlan[OTD]),
+        FILTER(DateTable, DateTable[Weeknum] < WEEKNUM(TODAY(), 2))
+    )
+)
+
+-- 품질 KPI
+Done FPY Target = 0.80
+Done FPY Rate =
+CALCULATE(
+    COUNTX(FILTER(Done_FPY, [Done FPY] = "True"), [Done FPY]) / COUNTA(Done_FPY[Done FPY]),
+    YEAR(Done_FPY[Final Done]) = 2025,
+    USERELATIONSHIP(Done_FPY[S3 Done Week], DateTable[Weeknum])
+)
+
+-- 청구 KPI
+Target = CALCULATE(SUM(InvoiceTarget[Inv Target]), USERELATIONSHIP(InvoiceTarget[Project Name], Milestones[ProjectName]))
+Actual = CALCULATE(SUM(InvoiceActual[Inv Actual]), USERELATIONSHIP(InvoiceActual[Project Name], Milestones[ProjectName]))
+InvDiff = [Target] - [Actual]
+
+-- 진행률
+Completion Rate = CALCULATE(SUM(ProjectMilestone[Completion]) / SUM(ProjectMilestone[Total Unit]))
+Progress per = SUM(Progress[Current Progress]) / COUNT(Milestones[Unit Qty])
+Complete =
+CALCULATE(
+    SUM(Completion[Completed Unit]),
+    TREATAS(VALUES(DateTable[Weeknum]), Completion[Completion wk]),
+    USERELATIONSHIP(Completion[Project Desc], Milestones[ProjectName])
+)
+
+-- ===== 계산 컬럼 =====
+
+-- TaskList
+NewOpen = IF(TaskList[OpenDate] > TODAY() - 8, 1, 0)
+__Priority_Index = RELATED(__Priority[Priority_Num])
+
+-- DateTable (주차 → 주 시작일 → 귀속 월)
+WeekStart = MINX(FILTER(CALENDAR(DATE(2025,1,1), DATE(2025,12,31)), WEEKNUM([Date], 2) = [Weeknum]), [Date])
+IgnoreDate = DATEADD(DateTable[WeekStart].[Date], 1, MONTH)
+Month = IF((ENDOFMONTH(DateTable[WeekStart].[Date]) - DateTable[WeekStart].[Date]) > 3, DateTable[WeekStart].[Month], DateTable[IgnoreDate].[Month])
+Month_Num = IF((ENDOFMONTH(DateTable[WeekStart].[Date]) - DateTable[WeekStart].[Date]) > 3, FORMAT(DateTable[WeekStart], "MM"), FORMAT(DateTable[IgnoreDate], "MM"))
+
+-- 공정별 테이블
+Unit Type = RIGHT([Unit ID], 1)
+
+-- Done_FPY
+Done FPY = IF([S3 Done].[Year] < 2025, "True", IF([Final Done].[Date] - [S3 Done].[Date] < 8, "True", "False"))
+
+-- InvoiceTarget / InvoiceActual
+Rev = LOOKUPVALUE(Milestones[Price/Unit], Milestones[ProjectName], InvoiceTarget[Project Name]) * InvoiceTarget[Inv Target]
+
+-- __UnitStatus: 현재 상태 기준 주차
+Work Week =
+SWITCH([Status],
+    "S0 Start",    WEEKNUM([S0Start], 2),
+    "S0 Complete", WEEKNUM([S0End], 2),
+    "S1 Complete", WEEKNUM([S1Complete], 2),
+    "S2 Start",    WEEKNUM([S2Start], 2),
+    "S2 Complete", WEEKNUM([S2Complete], 2),
+    "S3 Start",    WEEKNUM([S3Start], 2),
+    "S3 Complete", WEEKNUM([S3Complete], 2),
+    "Invoiced",    WEEKNUM([Invoice], 2)
+)   -- 원본은 중첩 IF
+
+-- __Completion
+S1 Complete wk = WEEKNUM(__Completion[S1Complete], 2)
+S1 Complete yr = YEAR(__Completion[S1Complete])   -- S2, S3 동일
+
+-- ProjectMilestone
+Total Unit = CALCULATE(SUM(Milestones[Unit Qty]), USERELATIONSHIP(ProjectMilestone[Project ID], Milestones[Project ID]))
+
+-- ===== 계산 테이블 =====
+
+DateTable = GENERATESERIES(1, 52, 1)
+
+TaskList = UNION(_Invoicing, _DeliveryPlan, _ProductionPlan, _CustomerNCR, _CustPlan, _Inspection, _ProjectForecast, _Shipping)
+
+S1 =
+SELECTCOLUMNS(
+    FILTER(__UnitRelease, NOT ISBLANK(__UnitRelease[Milestones.ProjectName])),
+    "Project",  __UnitRelease[Milestones.ProjectName],
+    "Unit ID",  [ID],
+    "S1_Done",  [S1 Done].[Date],
+    "S1 Month", [S1 Done].[Month],
+    "S1 Week",  WEEKNUM([S1 Done].[Date], 2),
+    "S1 Year",  [S1 Done].[Year]
+)   -- S2, S3(보정 일자 사용), FinalDone, INV, Ship 동일 구조
+
+Done_FPY =
+SELECTCOLUMNS(__UnitRelease,
+    "Project", __UnitRelease[Milestones.ProjectName],
+    "Unit ID", [ID],
+    "S3 Done", [S3 Done].[Date],
+    "Final Done", [Final Done].[Date],
+    "S3 Done Week", WEEKNUM([S3 Done].[Date], 2)
+)
+
+__Completion = SUMMARIZE(FILTER(__UnitStatus, [Status] <> "Waiting production"), [Project Desc], [Project ID], [ID], [S1Complete], [S2Complete], [S3Complete])
+
+ProjectMilestone =
+SUMMARIZE(
+    FILTER(__UnitStatus, [Status] <> "Waiting production"),
+    [Project Desc], [Project ID],
+    "Production Start", MIN(__UnitStatus[S0Start]),
+    "Production End",   MAX(__UnitStatus[S3Complete]),
+    "Completion",       COUNTAX(FILTER(__UnitStatus, [Status] IN {"S3 Complete", "Invoiced"}), [ID])
+)
+
+Progress = SUMMARIZE(__UnitStatus, [Project Desc], [Project ID], __UnitStatus[Status], __UnitStatus[StatusIndex], [Work Week], "Current Progress", COUNTA(__UnitStatus[Status]))
+
+_S1 Completion = SUMMARIZE(FILTER(__Completion, [S1 Complete yr] = 2025), [Project Desc], [S1 Complete wk], "Completed Unit", COUNTA(__Completion[S1 Complete wk]), "Status", "S1 Complete", "ProgressIndex", 3)
+_S2 Completion = SUMMARIZE(FILTER(__Completion, [S2 Complete yr] = 2025), [Project Desc], [S2 Complete wk], "Completed Unit", COUNTA(__Completion[S2 Complete wk]), "Status", "S2 Complete", "ProgressIndex", 5)
+_S3 Completion = SUMMARIZE(FILTER(__Completion, [S3 Complete yr] = 2025), [Project Desc], [S3 Complete wk], "Completed Unit", COUNTA(__Completion[S3 Complete wk]), "Status", "S3 Complete", "ProgressIndex", 7)
+Completion = UNION('_S1 Completion', '_S3 Completion', '_S2 Completion')
