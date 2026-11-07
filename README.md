@@ -11,7 +11,8 @@
 sql/
 ├── zone_plan_item_map.sql     # 금주 생산계획 ↔ 자재 매핑 ↔ 공정 현황
 ├── board_item_map_check.sql   # 현황판 표시 매핑 검증
-└── area_job_list.sql          # 공정별 작업(Job) 계획·실적 목록
+├── area_job_list.sql          # 공정별 작업(Job) 계획·실적 목록
+└── weekly_plan_item_map.sql   # 금주 확정 프로젝트 계획 ↔ 자재 매핑 조회
 ```
 
 ## 쿼리 설명
@@ -33,3 +34,10 @@ sql/
 - `job` → `item_map` / `work_plan` / `equipment` / `proc` / `job_snap` 조인
 - 계획·실적 시작/종료 시각의 시간대 변환
 - `FIELD()`로 공정 순서 지정 정렬
+
+### `weekly_plan_item_map.sql`
+금주 생성된 미완료 생산계획(확정 프로젝트)에 단위별 자재 매핑을 결합해 조회합니다.
+- CTE 2개(`mapping`, `week_plan`)로 매핑·계획 데이터를 분리 구성 후 `LEFT JOIN`
+- 현지 시각 기준 연도·주차(`YEAR`, `WEEKOFYEAR`)로 금주 계획 필터
+- 부품 ID 앞·뒤 문자열을 결합해 부품 유형(`part_type`) 산출, 단위·유형·라인별 그룹화
+- 주석 처리된 조건(부품 ID, 라인 범위, 매핑 이력 서브쿼리)으로 조회 범위 전환
